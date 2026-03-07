@@ -7,10 +7,10 @@ const VERIFY_TOKEN = "realestate123";
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
 const PROPERTIES = process.env.PROPERTIES || "No properties available";
 
 app.get("/webhook", (req, res) => {
+  console.log("Webhook verification request received");
   if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
     res.send(req.query["hub.challenge"]);
   } else {
@@ -19,54 +19,37 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-  const body = req.body;
-  if (body.object === "whatsapp_business_account") {
-    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-    if (message && message.type === "text") {
-      const from = message.from;
-      const text = message.text.body;
-      const reply = await getAIReply(text);
-      await sendWhatsAppMessage(from, reply);
-    }
-  }
+  console.log("Incoming webhook:", JSON.stringify(req.body));
   res.sendStatus(200);
+  try {
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const messages = value?.messages;
+    if (!messages || messages.length === 0) return;
+    const message = messages[0];
+    if (message.type !== "text") return;
+    const from = message.from;
+    const text = message.text.body;
+    console.log(`Message from ${from}: ${text}`);
+    const reply = await getAIReply(text);
+    console.log(`Replying: ${reply}`);
+    await sendWhatsAppMessage(from, reply);
+  } catch (e) {
+    console.error("Error:", e.message);
+  }
 });
 
 async function getAIReply(userMessage) {
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{
           parts: [{
-            text: `You are a professional real estate agent assistant in Saudi Arabia. Reply in the same language the client uses (Arabic or English). Be helpful, warm and professional.
-
-Here are the available properties:
-${PROPERTIES}
-
-Client message: ${userMessage}
-
-Reply professionally and match properties to what the client needs.`
+            text: `You are a professional real estate agent assistant in Saudi Arabia. Reply in the same language the client uses (Arabic or English). Be helpful, warm and professional.\n\nHere are the available properties:\n${PROPERTIES}\n\nClient message: ${userMessage}\n\nReply professionally and match properties to what the client needs.`
           }]
         }]
       }
     );
-    return response.data.candidates[0].content.parts[0].text;
-  } catch (e) {
-    return "Sorry, I will get back to you shortly. / عذراً، سأرد عليك قريباً.";
-  }
-}
-
-async function sendWhatsAppMessage(to, message) {
-  await axios.post(
-    `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      messaging_product: "whatsapp",
-      to: to,
-      text: { body: message }
-    },
-    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
-  );
-}
-
-app.listen(3000, () => console.log("Bot is running!"));
+    return respons
