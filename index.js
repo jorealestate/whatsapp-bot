@@ -10,7 +10,6 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const PROPERTIES = process.env.PROPERTIES || "No properties available";
 
 app.get("/webhook", (req, res) => {
-  console.log("Webhook verification request received");
   if (req.query["hub.verify_token"] === VERIFY_TOKEN) {
     res.send(req.query["hub.challenge"]);
   } else {
@@ -19,21 +18,15 @@ app.get("/webhook", (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-  console.log("Incoming webhook:", JSON.stringify(req.body));
   res.sendStatus(200);
   try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const messages = value?.messages;
-    if (!messages || messages.length === 0) return;
+    const messages = req.body.entry?.[0]?.changes?.[0]?.value?.messages;
+    if (!messages) return;
     const message = messages[0];
     if (message.type !== "text") return;
     const from = message.from;
     const text = message.text.body;
-    console.log(`Message from ${from}: ${text}`);
     const reply = await getAIReply(text);
-    console.log(`Replying: ${reply}`);
     await sendWhatsAppMessage(from, reply);
   } catch (e) {
     console.error("Error:", e.message);
@@ -47,9 +40,9 @@ async function getAIReply(userMessage) {
       {
         contents: [{
           parts: [{
-            text: `You are a professional real estate agent assistant in Saudi Arabia. Reply in the same language the client uses (Arabic or English). Be helpful, warm and professional.\n\nHere are the available properties:\n${PROPERTIES}\n\nClient message: ${userMessage}\n\nReply professionally and match properties to what the client needs.`
+            text: `You are a professional real estate agent in Saudi Arabia. Reply in the same language as the client (Arabic or English). Properties: ${PROPERTIES}. Client message: ${userMessage}`
           }]
         }]
       }
     );
-    return respons
+    return response.d
