@@ -45,4 +45,18 @@ async function getAIReply(userMessage) {
         }]
       }
     );
-    return response.d
+    return response.data.candidates[0].content.parts[0].text;
+  } catch (e) {
+    return "Sorry, will get back to you shortly.";
+  }
+}
+
+async function sendWhatsAppMessage(to, message) {
+  await axios.post(
+    `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+    { messaging_product: "whatsapp", to: to, text: { body: message } },
+    { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` } }
+  );
+}
+
+app.listen(process.env.PORT || 3000, () => console.log("Bot is running!"));
